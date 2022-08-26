@@ -1,36 +1,7 @@
-﻿namespace msgraph
+﻿module syncer.MsGraph
 
 open System
 open Microsoft.Graph
-
-type Entry =
-    { Start: DateTime
-      End: DateTime
-      Category: string list
-      EntryTitle: string
-      Series: string
-      Captured: bool }
-    static member From(evt: Event) =
-        { Start = (evt.Start.DateTime |> DateTime.Parse).AddHours(2)
-          End = (evt.End.DateTime |> DateTime.Parse).AddHours(2)
-          Category = evt.Categories |> List.ofSeq
-          EntryTitle = evt.Subject
-          Series = evt.SeriesMasterId
-          Captured = false }
-
-    member this.Duration =
-        (this.End - this.Start).TotalMinutes
-        |> Math.Ceiling
-        |> int
-
-and TimeEntry =
-    { Start: DateTime
-      End: DateTime
-      EntryTitle: string
-      Project: string }
-
-
-
 
 type GraphConnector(client: GraphServiceClient) =
 

@@ -9,7 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\msgraph\msgraph.fsproj" />
+      <ProjectReference Include="..\syncer\syncer.fsproj" />
     </ItemGroup>
 
     <ItemGroup>

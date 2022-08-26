@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "clockSync", "clockSync\clockSync.csproj", "{67421031-9FD6-4CE8-90CC-D94F074755C2}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "msgraph", "msgraph\msgraph.fsproj", "{3056BAE2-7B42-4E24-95CC-025DA5F263FA}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "syncer", "syncer\syncer.fsproj", "{3056BAE2-7B42-4E24-95CC-025DA5F263FA}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "graph.tests", "graph.tests\graph.tests.fsproj", "{F1C5DA37-C172-4BC9-97C7-A04370E3B1AD}"
 EndProject

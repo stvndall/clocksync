@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using Azure.Identity;
 using Microsoft.Graph;
-using msgraph;
+using syncer;
 using Newtonsoft.Json;
 using Process = System.Diagnostics.Process;
 
