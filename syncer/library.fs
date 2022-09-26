@@ -1,10 +1,14 @@
 ﻿namespace syncer
 
 open System
-open Clockify.Net.Models.Reports
+open Clockify.Net.Models.Projects
 open Microsoft.Graph
+open Clockify.Net.Models.Reports
+open System.Threading.Tasks
 
-type Entry =
+type RunOptions = { dryRun: bool }
+
+type CalendarEntry =
     { Start: DateTime
       End: DateTime
       Category: string list
@@ -41,3 +45,22 @@ and TimeEntry =
           Captured = true }
 
 and TimeEntryProject = { Id: String; Name: string }
+
+type IClockifyConnector =
+    abstract member FetchProjects: unit -> ProjectDtoImpl list Task
+    abstract member FetchEntries: DateTime -> DateTime -> TimeEntry list Task
+    abstract member AddNewEntry: TimeEntry -> Task
+
+type ICalendarConnector =
+    abstract member GetEvents: string -> DateTime -> DateTime -> CalendarEntry list Task
+    abstract member GetCalendarView: DateTime -> DateTime -> CalendarEntry list Task
+
+type IMerger =
+    abstract member FindUnSynced: TimeEntry list -> CalendarEntry list -> CalendarEntry list
+
+type ICoordinator =
+    abstract member SyncFor: RunOptions -> string option -> DateTime -> DateTime -> CalendarEntry ResizeArray Task
+    
+type IProjectFinder =
+    abstract member FindForSeries:  string -> string Task
+    abstract member FindForDescription:  string -> string

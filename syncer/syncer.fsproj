@@ -11,6 +11,9 @@
         <Compile Include="Clockify.fs" />
         <Compile Include="MsGraph.fs" />
         <Compile Include="ClientFactory.fs" />
+        <Compile Include="Merger.fs" />
+        <Compile Include="Coordinator.fs" />
+        <Compile Include="ProjectFinder.fs" />
     </ItemGroup>
 
     <ItemGroup>
