@@ -1,8 +1,11 @@
 ﻿namespace syncer
 
+open System.Collections.Generic
 open System.Diagnostics
 open System.Threading.Tasks
+open Clockify.Net.Models.Projects
 open Microsoft.Graph
+open Spectre.Console
 
 
 type IFileReader =
@@ -10,13 +13,13 @@ type IFileReader =
     abstract member upsertValue: key: string -> value: string -> unit Task
 
 
-type  FileReader() =
+type FileReader() =
     interface IFileReader with
-        member this.fetchIfExists(key) = task{return None}
-        member this.upsertValue(key) (value) = task{return ()}
-    
-type ProjectFinder(file: IFileReader, clockifyConnector: IClockifyConnector) =
-    let mutable projectPrepared: string option =
+        member this.fetchIfExists(key) = task { return None }
+        member this.upsertValue (key) (value) = task { return () }
+
+type ProjectFinder(file: IFileReader, clockifyConnector: IClockifyConnector, options: RunOptions) =
+    let mutable projectPrepared: IDictionary<string, ProjectDtoImpl list> option =
         None
 
     let projects () =
@@ -27,28 +30,68 @@ type ProjectFinder(file: IFileReader, clockifyConnector: IClockifyConnector) =
                 clockifyConnector.FetchProjects()
                 |> Async.AwaitTask
                 |> Async.RunSynchronously
+                |> List.groupBy (fun p -> p.ClientName)
+                |> dict
 
-            let projects =
-                projects
-                |> List.map (fun x -> $"{x.ClientName} {x.Name}")
-                |> List.reduce (fun acc n -> $"{acc}\n{n}")
+            // let projects =
+            //     projects
+            //     |> List.map (fun x -> $"{x.ClientName} {x.Name}")
+            //     |> List.reduce (fun acc n -> $"{acc}\n{n}")
 
             projectPrepared <- Some(projects)
             projects
 
-    let FindNewBinding (askFor: string) =
+    let getClient (askFor: string) : string =
+        let title =
+            $"{askFor} \n Select the client for the "
+
         let options = projects ()
-        let mutable psi = ProcessStartInfo("fzf")
-        psi.RedirectStandardInput <- true
-        psi.
-        let proc = Process.Start("fzf")
-        proc.StandardInput.Write(options)
-        let mutable line:string = ""
-        while (not proc.StandardOutput.EndOfStream) do
-            line <- proc.StandardOutput.ReadLine()
-        
-        printfn $"typed {line} in the output"
-        line
+        let clients = options.Keys |> List.ofSeq
+        let mutable prompt = SelectionPrompt<'a>()
+
+        prompt <- SelectionPromptExtensions.Title(prompt, title)
+        prompt <- SelectionPromptExtensions.PageSize(prompt, 8)
+        prompt <- SelectionPromptExtensions.AddChoices(prompt, clients)
+        // prompt <- SelectionPromptExtensions.UseConverter(prompt, converter)
+
+        prompt <-
+            SelectionPromptExtensions.MoreChoicesText(
+                prompt,
+                "There are additional choices, use the cursor keys to select"
+            )
+
+        prompt |> AnsiConsole.Prompt
+
+    let getProjectFromClient (askFor: string) (clientName: string) =
+        let title =
+            $"{askFor} \n Select the project to assign to"
+
+        let options = projects ()
+
+        let projects = options.Item(clientName)
+        // |> List.map (fun x -> x.Name)
+
+        let mutable prompt =
+            SelectionPrompt<ProjectDtoImpl>()
+
+        prompt <- SelectionPromptExtensions.Title(prompt, title)
+        prompt <- SelectionPromptExtensions.PageSize(prompt, 8)
+        prompt <- SelectionPromptExtensions.AddChoices(prompt, projects)
+        prompt <- SelectionPromptExtensions.UseConverter(prompt, (fun p -> p.Name))
+
+        prompt <-
+            SelectionPromptExtensions.MoreChoicesText(
+                prompt,
+                "There are additional choices, use the cursor keys to select"
+            )
+
+        prompt |> AnsiConsole.Prompt
+
+
+
+    let AssignProjectToEntry (askFor: string) : ProjectDtoImpl =
+        getClient askFor |> getProjectFromClient askFor
+
 
 
 
@@ -62,7 +105,7 @@ type ProjectFinder(file: IFileReader, clockifyConnector: IClockifyConnector) =
                 match! file.fetchIfExists seriesId with
                 | Some (value) -> return value
                 | None ->
-                    let project = FindNewBinding seriesId
-                    do! file.upsertValue seriesId project
-                    return project
+                    let project = AssignProjectToEntry seriesId
+                    do! file.upsertValue seriesId project.Id
+                    return project.Id
             }

@@ -59,7 +59,7 @@ type IMerger =
     abstract member FindUnSynced: TimeEntry list -> CalendarEntry list -> CalendarEntry list
 
 type ICoordinator =
-    abstract member SyncFor: RunOptions -> string option -> DateTime -> DateTime -> CalendarEntry ResizeArray Task
+    abstract member SyncFor: string option -> DateTime -> DateTime -> CalendarEntry ResizeArray Task
     
 type IProjectFinder =
     abstract member FindForSeries:  string -> string Task

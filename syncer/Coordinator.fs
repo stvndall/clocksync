@@ -1,9 +1,9 @@
 ﻿namespace syncer
 
-type Coordinator(clockify: IClockifyConnector, calendar: ICalendarConnector, merger: IMerger, projectFinder:IProjectFinder) =
+type Coordinator(clockify: IClockifyConnector, calendar: ICalendarConnector, merger: IMerger, projectFinder:IProjectFinder, options:RunOptions) =
 
     interface ICoordinator with
-        member this.SyncFor options calendarId startDate endDate =
+        member this.SyncFor calendarId startDate endDate =
             task {
 
 

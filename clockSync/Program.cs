@@ -5,11 +5,13 @@ using System.Text.Json.Serialization;
 using Azure.Core;
 using Azure.Identity;
 using Clockify.Net;
+using clockSync;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FSharp.Core;
 using Microsoft.Graph;
 using syncer;
 using Newtonsoft.Json;
+using Spectre.Console;
 using Process = System.Diagnostics.Process;
 
 var tenantId = Environment.GetEnvironmentVariable("CLOCKSYNC_TENANT").Expect("Tenant no set");
@@ -23,12 +25,13 @@ var options = new InteractiveBrowserCredentialOptions
 
 Task HandleCallBack(DeviceCodeInfo code, CancellationToken cancellation)
 {
-    OpenBrowser(code.VerificationUri.ToString());
+    Utilities.OpenBrowser(code.VerificationUri.ToString());
     Console.WriteLine(code.Message);
     return Task.CompletedTask;
 }
 
 TokenCredential deviceCodeCredential = new DeviceCodeCredential(HandleCallBack, tenantId, clientId, options);
+
 
 var services = new ServiceCollection();
 var providor = services.AddSingleton<ICoordinator, Coordinator>()
@@ -39,66 +42,26 @@ var providor = services.AddSingleton<ICoordinator, Coordinator>()
     .AddSingleton<IMerger, Merger>()
     .AddSingleton<IProjectFinder, ProjectFinder>()
     .AddSingleton<IFileReader, FileReader>()
+    .AddSingleton<RunOptions>(new RunOptions(true))
     .BuildServiceProvider();
 
-[MethodImpl(MethodImplOptions.AggressiveInlining)]
-static void OpenBrowser(string url)
-{
-    try
-    {
-        Process.Start(url);
-    }
-    catch
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            url = url.Replace("&", "^&");
-            Process.Start(new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true });
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            Process.Start("xdg-open", url);
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            Process.Start("open", url);
-        }
-        else
-        {
-            throw;
-        }
-    }
-}
+AnsiConsole.Write(new FigletText("ClockSync").Centered().Color(Color.Aqua));
+var selected = AnsiConsole.Prompt(new SelectionPrompt<string>()
+    .Title("select a Client")
+    .UseConverter(s => $"{s} test")
+    .PageSize(5)
+    .Mode(SelectionMode.Leaf)
+);
+AnsiConsole.MarkupInterpolated($"selected {selected}");
+return;
 
 try
 {
     var start = DateTime.Parse("2022-09-01");
     var end = DateTime.Parse("2022-10-01");
-    // var events = await client.GetCalendarView("", start, end).Map(x => x.ToList());
-    //
-    // foreach (var e in events)
-    // {
-    //     Console.WriteLine(
-    //         $"start {e.Start} end {e.End} name {e.EntryTitle} in categories {e.Category} in series {e.Series}");
-    // }
-    //
-    // Console.WriteLine(events.Count);
-    //
-    // Console.ReadKey();
-    // var clockify = new syncer.Clockify.ClockifyClient(clockifyKey);
-    // var entries = await clockify.FetchEntries(start, end).Expect("Invalid return from entries");
-    // foreach (var e in entries)
-    // {
-    //     Console.WriteLine(
-    //         $"start {e.Start} end {e.End} name {e.EntryTitle} in categories {e.Project}");
-    // }
-    //
-    // IMerger merger = new Merger();
-    //
-    //
-    // Console.WriteLine(entries.Count);
+
     var coordinator = providor.GetService<ICoordinator>();
-    var requiresSync = await coordinator.SyncFor(new RunOptions(true), FSharpOption<string>.None, start, end);
+    var requiresSync = await coordinator.SyncFor(FSharpOption<string>.None, start, end);
 }
 catch (Exception e)
 {
