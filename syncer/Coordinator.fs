@@ -47,70 +47,73 @@ type Coordinator
                             |> Async.AwaitTask
                             |> Async.RunSynchronously
 
-                        match alreadyCaptured with
-                        | Some (project) ->
-                            let mapper =
-                                project
-                                |> TimeEntryProject.From
-                                |> TimeEntry.ForCapture
+                        let first = bySeries.Item(x).Head
+                        AnsiConsole.MarkupLineInterpolated $"First event seen in the series has the following details"
 
-                            bySeries.Item(x) |> List.map mapper
-                        | _ ->
-                            let first = bySeries.Item(x).Head
-                            AnsiConsole.MarkupLineInterpolated $"No project is known for the series"
+                        AnsiConsole.MarkupLineInterpolated
+                            $"Name: {first.EntryTitle}\n Start time: {first.Start}\n Duration: {(first.End - first.Start).Minutes}\nA total of {bySeries.Item(x).Length} are found"
 
-                            AnsiConsole.MarkupLineInterpolated
-                                $"First event seen in the series has the following details"
+                        let sync =
+                            AnsiConsole.Prompt(ConfirmationPrompt("Should this be synced?"))
 
-                            AnsiConsole.MarkupLineInterpolated
-                                $"Name: {first.EntryTitle}\n Start time: {first.Start}\n Duration: {(first.End - first.Start).Minutes}\nA total of {bySeries.Item(x).Length} are found"
-
-                            let mutable confirmAdd =
-                                ConfirmationPrompt("Would you like to record a project for this series")
-
-                            let add = AnsiConsole.Prompt(confirmAdd)
-
-                            if add then
-                                let project =
-                                    projectFinder.AssignProjectToSeries x
-                                    |> Async.AwaitTask
-                                    |> Async.RunSynchronously
-
+                        if sync then
+                            match alreadyCaptured with
+                            | Some (project) ->
                                 let mapper =
                                     project
                                     |> TimeEntryProject.From
                                     |> TimeEntry.ForCapture
 
                                 bySeries.Item(x) |> List.map mapper
-                            else
-                                AnsiConsole.MarkupLineInterpolated $"Skipping"
-                                [])
+                            | _ ->
+                                AnsiConsole.MarkupLineInterpolated $"No project is known for the series"
+
+                                let add =
+                                    AnsiConsole.Prompt(
+                                        ConfirmationPrompt("Would you like to record a project for this series")
+                                    )
+
+                                if add then
+                                    let project =
+                                        projectFinder.AssignProjectToSeries x
+                                        |> Async.AwaitTask
+                                        |> Async.RunSynchronously
+
+                                    let mapper =
+                                        project
+                                        |> TimeEntryProject.From
+                                        |> TimeEntry.ForCapture
+
+                                    bySeries.Item(x) |> List.map mapper
+                                else
+                                    AnsiConsole.MarkupLineInterpolated $"Skipping"
+                                    []
+                        else
+                            AnsiConsole.MarkupLineInterpolated $"Skipping"
+                            [])
 
                 AnsiConsole.MarkupLineInterpolated $"Moving onto stand alone entries"
 
-                let standAlone = []
-                // bySeries.Item(null)
-                // |> List.map (fun x ->
-                //     AnsiConsole.MarkupLineInterpolated $"No project is known for the series"
-                //     AnsiConsole.MarkupLineInterpolated $"First event seen in the series has the following details"
-                //
-                //     AnsiConsole.MarkupLineInterpolated
-                //         $"Name: {x.EntryTitle}\n Start time: {x.Start}\n Duration: {(x.End - x.Start).Minutes}\n"
-                //
-                //     let mutable confirmAdd =
-                //         ConfirmationPrompt("Would you like to record a project for this series")
-                //
-                //     let add = AnsiConsole.Prompt(confirmAdd)
-                //
-                //     if add then
-                //         let project =
-                //             projectFinder.FindProjectPure()
-                //             |> TimeEntryProject.From
-                //
-                //         Some(TimeEntry.ForCapture project x)
-                //     else
-                //         None)
-                // |> List.choose id
+                let standAlone =
+                    bySeries.Item(null)
+                    |> List.map (fun x ->
+                        AnsiConsole.MarkupLineInterpolated $"Found event"
+
+                        AnsiConsole.MarkupLineInterpolated
+                            $"Name: {x.EntryTitle}\n Start time: {x.Start}\n Duration: {(x.End - x.Start).Minutes}\n"
+
+                        let add =
+                            AnsiConsole.Prompt(ConfirmationPrompt("Should this be synced?"))
+
+                        if add then
+                            let project =
+                                projectFinder.FindProjectPure()
+                                |> TimeEntryProject.From
+
+                            Some(TimeEntry.ForCapture project x)
+                        else
+                            None)
+                    |> List.choose id
 
                 let all = entries @ standAlone
 
@@ -121,7 +124,7 @@ type Coordinator
                 else
                     let options = ParallelOptions()
                     options.MaxDegreeOfParallelism <- 1044
-                    
+
 
                     Parallel.ForEach(
                         all,
@@ -135,7 +138,8 @@ type Coordinator
                             }
                             |> Async.AwaitTask
                             |> Async.RunSynchronously)
-                    ) |> ignore
+                    )
+                    |> ignore
 
                 return ResizeArray(requiresSync)
             }
