@@ -13,16 +13,14 @@ type IFileReader =
     abstract member upsertValue: key: string -> value: string -> unit Task
 
 
-type FileReader() =
-    interface IFileReader with
-        member this.fetchIfExists(key) = task { return None }
-        member this.upsertValue (key) (value) = task { return () }
-
 type ProjectFinder(file: IFileReader, clockifyConnector: IClockifyConnector, options: RunOptions) =
-    let mutable projectPrepared: IDictionary<string, ProjectDtoImpl list> option =
+    let mutable projectPrepared: IDictionary<string, Project> option =
         None
 
-    let projects () =
+    let mutable clientProjects: IDictionary<string, Project list> option =
+        None
+
+    let rawProjects () =
         match projectPrepared with
         | Some (projects) -> projects
         | None ->
@@ -30,24 +28,31 @@ type ProjectFinder(file: IFileReader, clockifyConnector: IClockifyConnector, opt
                 clockifyConnector.FetchProjects()
                 |> Async.AwaitTask
                 |> Async.RunSynchronously
-                |> List.groupBy (fun p -> p.ClientName)
+                |> List.map (fun x -> (x.Id, x))
                 |> dict
-
-            // let projects =
-            //     projects
-            //     |> List.map (fun x -> $"{x.ClientName} {x.Name}")
-            //     |> List.reduce (fun acc n -> $"{acc}\n{n}")
 
             projectPrepared <- Some(projects)
             projects
+
+    let projectsByClients () =
+        let projects =
+            rawProjects().Values
+            |> List.ofSeq
+            |> List.groupBy (fun p -> p.ClientName)
+            |> dict
+
+        clientProjects <- Some(projects)
+        projects
 
     let getClient (askFor: string) : string =
         let title =
             $"{askFor} \n Select the client for the "
 
-        let options = projects ()
+        let options = projectsByClients ()
         let clients = options.Keys |> List.ofSeq
-        let mutable prompt = SelectionPrompt<'a>()
+
+        let mutable prompt =
+            SelectionPrompt<string>()
 
         prompt <- SelectionPromptExtensions.Title(prompt, title)
         prompt <- SelectionPromptExtensions.PageSize(prompt, 8)
@@ -66,13 +71,13 @@ type ProjectFinder(file: IFileReader, clockifyConnector: IClockifyConnector, opt
         let title =
             $"{askFor} \n Select the project to assign to"
 
-        let options = projects ()
+        let options = projectsByClients ()
 
         let projects = options.Item(clientName)
         // |> List.map (fun x -> x.Name)
 
         let mutable prompt =
-            SelectionPrompt<ProjectDtoImpl>()
+            SelectionPrompt<Project>()
 
         prompt <- SelectionPromptExtensions.Title(prompt, title)
         prompt <- SelectionPromptExtensions.PageSize(prompt, 8)
@@ -89,7 +94,7 @@ type ProjectFinder(file: IFileReader, clockifyConnector: IClockifyConnector, opt
 
 
 
-    let AssignProjectToEntry (askFor: string) : ProjectDtoImpl =
+    let AssignProjectToEntry (askFor: string) : Project =
         getClient askFor |> getProjectFromClient askFor
 
 
@@ -102,10 +107,15 @@ type ProjectFinder(file: IFileReader, clockifyConnector: IClockifyConnector, opt
 
         member this.FindForSeries seriesId =
             task {
-                match! file.fetchIfExists seriesId with
-                | Some (value) -> return value
-                | None ->
-                    let project = AssignProjectToEntry seriesId
-                    do! file.upsertValue seriesId project.Id
-                    return project.Id
+                let! project = file.fetchIfExists seriesId
+                return Option.map (fun x -> rawProjects().Item(x)) project
             }
+
+        member this.AssignProjectToSeries(seriesId) =
+            task {
+                let project = AssignProjectToEntry seriesId
+                do! file.upsertValue seriesId project.Id
+                return project
+            }
+
+        member this.FindProjectPure() = AssignProjectToEntry ""

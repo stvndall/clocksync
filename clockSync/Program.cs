@@ -42,19 +42,18 @@ var providor = services.AddSingleton<ICoordinator, Coordinator>()
     .AddSingleton<IMerger, Merger>()
     .AddSingleton<IProjectFinder, ProjectFinder>()
     .AddSingleton<IFileReader, FileReader>()
-    .AddSingleton<RunOptions>(new RunOptions(true))
+    .AddSingleton<RunOptions>(new RunOptions(false))
     .BuildServiceProvider();
 
 AnsiConsole.Write(new FigletText("ClockSync").Centered().Color(Color.Aqua));
-var selected = AnsiConsole.Prompt(new SelectionPrompt<string>()
-    .Title("select a Client")
-    .UseConverter(s => $"{s} test")
-    .PageSize(5)
-    .Mode(SelectionMode.Leaf)
-);
-AnsiConsole.MarkupInterpolated($"selected {selected}");
-return;
-
+// var selected = AnsiConsole.Prompt(new SelectionPrompt<string>()
+//     .Title("select a Client")
+//     .UseConverter(s => $"{s} test")
+//     .PageSize(5)
+//     .Mode(SelectionMode.Leaf)
+// );
+// AnsiConsole.MarkupInterpolated($"selected {selected}");
+// return;
 try
 {
     var start = DateTime.Parse("2022-09-01");

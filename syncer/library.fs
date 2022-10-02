@@ -7,7 +7,7 @@ open Clockify.Net.Models.Reports
 open System.Threading.Tasks
 
 type RunOptions = { dryRun: bool }
-
+type Project = ProjectDtoImpl
 type CalendarEntry =
     { Start: DateTime
       End: DateTime
@@ -43,11 +43,26 @@ and TimeEntry =
             { Id = evt.ProjectId
               Name = evt.ProjectName }
           Captured = true }
+    static member ForCapture (prj:TimeEntryProject) (evt: CalendarEntry) =
+        {
+            Start = evt.Start
+            End = evt.End
+            Captured = false
+            Project = prj
+            EntryTitle = evt.EntryTitle
+        }
 
-and TimeEntryProject = { Id: String; Name: string }
+and TimeEntryProject =
+   { Id: String; Name: string
+      }
+   static member From(prj: Project) =
+       {
+           Id=prj.Id
+           Name = prj.Name
+       }
 
 type IClockifyConnector =
-    abstract member FetchProjects: unit -> ProjectDtoImpl list Task
+    abstract member FetchProjects: unit -> Project list Task
     abstract member FetchEntries: DateTime -> DateTime -> TimeEntry list Task
     abstract member AddNewEntry: TimeEntry -> Task
 
@@ -62,5 +77,7 @@ type ICoordinator =
     abstract member SyncFor: string option -> DateTime -> DateTime -> CalendarEntry ResizeArray Task
     
 type IProjectFinder =
-    abstract member FindForSeries:  string -> string Task
+    abstract member FindForSeries:  seriesId:string -> Project option Task
+    abstract member AssignProjectToSeries:  seriesId:string -> Project Task
+    abstract member FindProjectPure: unit -> Project 
     abstract member FindForDescription:  string -> string

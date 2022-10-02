@@ -17,15 +17,11 @@ type ClockifyConnector(apiKey: string) =
         Clockify.Net.ClockifyClient(apiKey)
 
     let mutable projects = []
-        
+
 
     let mutable (currentUser: Option<CurrentUserDto>) =
         None
-
-
-
-
-
+        
     let FetchWorkspace () =
         match workspaceId with
         | Some w -> task { return w }
@@ -72,12 +68,13 @@ type ClockifyConnector(apiKey: string) =
             if (r.Data.TimeEntries.Count > 0) then
                 let! nextPage = FetchEntriesInternal startDate endDate (page + 1)
                 list <- List.append list nextPage
+
             return list
         }
 
     interface IClockifyConnector with
-    
-        member this.FetchProjects () =
+
+        member this.FetchProjects() =
             if projects.Length = 0 then
                 task {
                     let! workspaceId = FetchWorkspace()
@@ -87,6 +84,7 @@ type ClockifyConnector(apiKey: string) =
                 }
             else
                 task { return projects }
+
         member this.FetchEntries (startDate) (endDate) =
             task {
                 let! list = FetchEntriesInternal startDate endDate 1
@@ -97,12 +95,19 @@ type ClockifyConnector(apiKey: string) =
             task {
                 let! workspaceId = FetchWorkspace()
                 let time = TimeIntervalDto()
-                time.Start <- DateTime.SpecifyKind(evt.Start, DateTimeKind.Local)
-                time.End <- DateTime.SpecifyKind(evt.Start, DateTimeKind.Local)
+
+                let startTime =
+                    DateTime.SpecifyKind(evt.Start.ToUniversalTime(), DateTimeKind.Utc)
+
+                let endTime =
+                    DateTime.SpecifyKind(evt.End.ToUniversalTime(), DateTimeKind.Utc)
+
+                time.Start <- startTime
+                time.End <- endTime
                 let entry = TimeEntryRequest()
                 entry.Description <- evt.EntryTitle
-                entry.Start <- DateTime.SpecifyKind(evt.Start, DateTimeKind.Local)
-                entry.End <- DateTime.SpecifyKind(evt.Start, DateTimeKind.Local)
+                entry.Start <- startTime
+                entry.End <- endTime
                 entry.ProjectId <- evt.Project.Id
                 entry.WorkspaceId <- workspaceId
                 let! c = client.CreateTimeEntryAsync(workspaceId, entry)
